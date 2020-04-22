@@ -36,7 +36,9 @@ export 'package:flare_dart/animation/actor_animation.dart';
 export 'package:flare_dart/actor_node.dart';
 
 abstract class FlutterActorDrawable {
+  bool _useAntialias;
   ui.BlendMode _blendMode;
+
   int get blendModeId {
     return _blendMode.index;
   }
@@ -54,6 +56,15 @@ abstract class FlutterActorDrawable {
     onBlendModeChanged(_blendMode);
   }
 
+  bool get useAntialias => _useAntialias;
+  set useAntialias(bool value) {
+    if (value != _useAntialias) {
+      _useAntialias = value;
+      onAntialiasChanged(_useAntialias);
+    }
+  }
+
+  void onAntialiasChanged(bool useAA);
   void onBlendModeChanged(ui.BlendMode blendMode);
 
   void draw(ui.Canvas canvas);
@@ -233,8 +244,7 @@ class FlutterActorShape extends ActorShape with FlutterActorDrawable {
     stroke?.markPathEffectsDirty();
   }
 
-  @override
-  void onBlendModeChanged(ui.BlendMode mode) {
+  void _markPaintDirty() {
     if (fills != null) {
       for (final ActorFill actorFill in fills) {
         (actorFill as ActorPaint).markPaintDirty();
@@ -245,6 +255,16 @@ class FlutterActorShape extends ActorShape with FlutterActorDrawable {
         (actorStroke as ActorPaint).markPaintDirty();
       }
     }
+  }
+
+  @override
+  void onBlendModeChanged(ui.BlendMode mode) {
+    _markPaintDirty();
+  }
+
+  @override
+  void onAntialiasChanged(bool useAA) {
+    _markPaintDirty();
   }
 
   ui.Path get path {
@@ -375,9 +395,11 @@ class FlutterColorFill extends ColorFill with FlutterFill {
   @override
   void update(int dirt) {
     super.update(dirt);
+    var parentShape = parent as FlutterActorShape;
     _paint
       ..color = uiColor
-      ..blendMode = (parent as FlutterActorShape).blendMode;
+      ..isAntiAlias = parentShape.useAntialias
+      ..blendMode = parentShape.blendMode;
     onPaintUpdated(_paint);
   }
 }
@@ -407,10 +429,13 @@ class FlutterColorStroke extends ColorStroke with FlutterStroke {
   @override
   void update(int dirt) {
     super.update(dirt);
+
+    var parentShape = parent as FlutterActorShape;
     _paint
       ..color = uiColor
       ..strokeWidth = width
-      ..blendMode = (parent as FlutterActorShape).blendMode;
+      ..isAntiAlias = parentShape.useAntialias
+      ..blendMode = parentShape.blendMode;
     onPaintUpdated(_paint);
   }
 }
@@ -445,9 +470,9 @@ class FlutterGradientFill extends GradientFill with FlutterFill {
     } else {
       Float32List overrideColor = artboard.overrideColor;
       double o = (overrideColor[3] *
-              artboard.modulateOpacity *
-              opacity *
-              shape.renderOpacity)
+          artboard.modulateOpacity *
+          opacity *
+          shape.renderOpacity)
           .clamp(0.0, 1.0)
           .toDouble();
       paintColor = ui.Color.fromRGBO(
@@ -456,9 +481,12 @@ class FlutterGradientFill extends GradientFill with FlutterFill {
           (overrideColor[2] * 255.0).round(),
           o);
     }
+
+    var parentShape = parent as FlutterActorShape;
     _paint
       ..color = paintColor
-      ..blendMode = (parent as FlutterActorShape).blendMode
+      ..isAntiAlias = parentShape.useAntialias
+      ..blendMode = parentShape.blendMode
       ..shader = ui.Gradient.linear(ui.Offset(renderStart[0], renderStart[1]),
           ui.Offset(renderEnd[0], renderEnd[1]), colors, stops);
     onPaintUpdated(_paint);
@@ -502,9 +530,9 @@ class FlutterGradientStroke extends GradientStroke with FlutterStroke {
     } else {
       Float32List overrideColor = artboard.overrideColor;
       double o = (overrideColor[3] *
-              artboard.modulateOpacity *
-              opacity *
-              shape.renderOpacity)
+          artboard.modulateOpacity *
+          opacity *
+          shape.renderOpacity)
           .clamp(0.0, 1.0)
           .toDouble();
       paintColor = ui.Color.fromRGBO(
@@ -513,9 +541,12 @@ class FlutterGradientStroke extends GradientStroke with FlutterStroke {
           (overrideColor[2] * 255.0).round(),
           o);
     }
+
+    var parentShape = parent as FlutterActorShape;
     _paint
       ..color = paintColor
-      ..blendMode = (parent as FlutterActorShape).blendMode
+      ..isAntiAlias = parentShape.useAntialias
+      ..blendMode = parentShape.blendMode
       ..strokeWidth = width
       ..shader = ui.Gradient.linear(ui.Offset(renderStart[0], renderStart[1]),
           ui.Offset(renderEnd[0], renderEnd[1]), colors, stops);
@@ -567,9 +598,9 @@ class FlutterRadialFill extends RadialGradientFill with FlutterFill {
     } else {
       Float32List overrideColor = artboard.overrideColor;
       double o = (overrideColor[3] *
-              artboard.modulateOpacity *
-              opacity *
-              shape.renderOpacity)
+          artboard.modulateOpacity *
+          opacity *
+          shape.renderOpacity)
           .clamp(0.0, 1.0)
           .toDouble();
       paintColor = ui.Color.fromRGBO(
@@ -579,9 +610,11 @@ class FlutterRadialFill extends RadialGradientFill with FlutterFill {
           o);
     }
 
+    var parentShape = parent as FlutterActorShape;
     _paint
       ..color = paintColor
-      ..blendMode = (parent as FlutterActorShape).blendMode
+      ..isAntiAlias = parentShape.useAntialias
+      ..blendMode = parentShape.blendMode
       ..shader = radial;
     onPaintUpdated(_paint);
   }
@@ -625,9 +658,9 @@ class FlutterRadialStroke extends RadialGradientStroke with FlutterStroke {
     } else {
       Float32List overrideColor = artboard.overrideColor;
       double o = (overrideColor[3] *
-              artboard.modulateOpacity *
-              opacity *
-              shape.renderOpacity)
+          artboard.modulateOpacity *
+          opacity *
+          shape.renderOpacity)
           .clamp(0.0, 1.0)
           .toDouble();
       paintColor = ui.Color.fromRGBO(
@@ -637,10 +670,12 @@ class FlutterRadialStroke extends RadialGradientStroke with FlutterStroke {
           o);
     }
 
+    var parentShape = parent as FlutterActorShape;
     _paint
       ..color = paintColor
       ..strokeWidth = width
-      ..blendMode = (parent as FlutterActorShape).blendMode
+      ..isAntiAlias = parentShape.useAntialias
+      ..blendMode = parentShape.blendMode
       ..shader = ui.Gradient.radial(Offset(renderStart[0], renderStart[1]),
           radius, colors, stops, ui.TileMode.clamp);
     onPaintUpdated(_paint);
@@ -792,9 +827,9 @@ class FlutterActor extends Actor {
     List<Uint8List> data = _rawAtlasData;
     _rawAtlasData = null;
     List<ui.Codec> codecs =
-        await Future.wait(data.map(ui.instantiateImageCodec));
+    await Future.wait(data.map(ui.instantiateImageCodec));
     List<ui.FrameInfo> frames =
-        await Future.wait(codecs.map((ui.Codec codec) => codec.getNextFrame()));
+    await Future.wait(codecs.map((ui.Codec codec) => codec.getNextFrame()));
     _images =
         frames.map((ui.FrameInfo frame) => frame.image).toList(growable: false);
     return true;
@@ -812,7 +847,20 @@ class FlutterActor extends Actor {
 }
 
 class FlutterActorArtboard extends ActorArtboard {
+  bool _useAntialias;
   FlutterActorArtboard(FlutterActor actor) : super(actor);
+
+  bool get useAntialias => _useAntialias;
+  set useAntialias(bool value) {
+    if (_useAntialias != value) {
+      _useAntialias = value;
+      if (drawableNodes != null) {
+        for (final ActorDrawable drawable in drawableNodes) {
+          (drawable as FlutterActorDrawable).useAntialias = _useAntialias;
+        }
+      }
+    }
+  }
 
   void draw(ui.Canvas canvas) {
     if (clipContents) {
@@ -954,7 +1002,7 @@ abstract class FlutterPathPointsPath implements FlutterPath {
                     ? previous.outPoint
                     : previous.translation;
                 Vec2D nextPoint =
-                    next is CubicPathPoint ? next.inPoint : next.translation;
+                next is CubicPathPoint ? next.inPoint : next.translation;
                 Vec2D pos = point.translation;
 
                 Vec2D toPrev = Vec2D.subtract(Vec2D(), prevPoint, pos);
@@ -968,10 +1016,10 @@ abstract class FlutterPathPointsPath implements FlutterPath {
                 toNext[1] /= toNextLength;
 
                 double renderRadius =
-                    min(toPrevLength, min(toNextLength, radius));
+                min(toPrevLength, min(toNextLength, radius));
 
                 Vec2D translation =
-                    Vec2D.scaleAndAdd(Vec2D(), pos, toPrev, renderRadius);
+                Vec2D.scaleAndAdd(Vec2D(), pos, toPrev, renderRadius);
                 renderPoints.add(CubicPathPoint.fromValues(
                     translation,
                     translation,
@@ -1002,10 +1050,10 @@ abstract class FlutterPathPointsPath implements FlutterPath {
     PathPoint firstPoint = renderPoints[0];
     _path.moveTo(firstPoint.translation[0], firstPoint.translation[1]);
     for (int i = 0,
-            l = isClosed ? renderPoints.length : renderPoints.length - 1,
-            pl = renderPoints.length;
-        i < l;
-        i++) {
+        l = isClosed ? renderPoints.length : renderPoints.length - 1,
+        pl = renderPoints.length;
+    i < l;
+    i++) {
       PathPoint point = renderPoints[i];
       PathPoint nextPoint = renderPoints[(i + 1) % pl];
       Vec2D cin = nextPoint is CubicPathPoint ? nextPoint.inPoint : null;
@@ -1063,10 +1111,10 @@ class FlutterActorImage extends ActorImage with FlutterActorDrawable {
         ..blendMode = blendMode
         ..shader = images != null
             ? ui.ImageShader(images[textureIndex], ui.TileMode.clamp,
-                ui.TileMode.clamp, _identityMatrix)
+            ui.TileMode.clamp, _identityMatrix)
             : null
         ..filterQuality = ui.FilterQuality.low
-        ..isAntiAlias = true;
+        ..isAntiAlias = useAntialias;
       onPaintUpdated(_paint);
     }
   }
@@ -1082,6 +1130,14 @@ class FlutterActorImage extends ActorImage with FlutterActorDrawable {
   void onBlendModeChanged(ui.BlendMode mode) {
     if (_paint != null) {
       _paint.blendMode = mode;
+      onPaintUpdated(_paint);
+    }
+  }
+
+  @override
+  void onAntialiasChanged(bool useAA) {
+    if (_paint != null) {
+      _paint.isAntiAlias = useAA;
       onPaintUpdated(_paint);
     }
   }
@@ -1106,7 +1162,7 @@ class FlutterActorImage extends ActorImage with FlutterActorDrawable {
 
     _paint.shader = image != null
         ? ui.ImageShader(
-            image, ui.TileMode.clamp, ui.TileMode.clamp, _identityMatrix)
+        image, ui.TileMode.clamp, ui.TileMode.clamp, _identityMatrix)
         : null;
 
     _canvasVertices = ui.Vertices.raw(ui.VertexMode.triangles, _vertexBuffer,
@@ -1144,7 +1200,7 @@ class FlutterActorImage extends ActorImage with FlutterActorDrawable {
       AssetBundle bundle, String filename) async {
     ByteData data = await bundle.load(filename);
     ui.Codec codec =
-        await ui.instantiateImageCodec(Uint8List.view(data.buffer));
+    await ui.instantiateImageCodec(Uint8List.view(data.buffer));
     ui.FrameInfo frame = await codec.getNextFrame();
     return changeImage(frame.image);
   }
@@ -1186,10 +1242,9 @@ class FlutterActorImage extends ActorImage with FlutterActorDrawable {
       ..blendMode = blendMode
       ..shader = image != null
           ? ui.ImageShader(
-              image, ui.TileMode.clamp, ui.TileMode.clamp, _identityMatrix)
-          : null;
-    _paint.filterQuality = ui.FilterQuality.low;
-    _paint.isAntiAlias = true;
+          image, ui.TileMode.clamp, ui.TileMode.clamp, _identityMatrix)
+          : null
+      ..filterQuality = ui.FilterQuality.low;
     onPaintUpdated(_paint);
   }
 
@@ -1322,7 +1377,7 @@ class FlutterActorLayerEffectRenderer extends ActorLayerEffectRenderer
 
     double baseBlurX = 0;
     double baseBlurY = 0;
-    Paint layerPaint = Paint();
+    Paint layerPaint = Paint()..isAntiAlias = useAntialias;
     Color layerColor = Colors.white.withOpacity(parent.renderOpacity);
     layerPaint.color = layerColor;
     if (blur?.isActive ?? false) {
@@ -1343,6 +1398,7 @@ class FlutterActorLayerEffectRenderer extends ActorLayerEffectRenderer
         var color = dropShadow.color;
         canvas.translate(dropShadow.offsetX, dropShadow.offsetY);
         var shadowPaint = Paint()
+          ..isAntiAlias = useAntialias
           ..color = layerColor
           ..imageFilter = _blurFilter(
               dropShadow.blurX + baseBlurX, dropShadow.blurY + baseBlurY)
@@ -1375,7 +1431,9 @@ class FlutterActorLayerEffectRenderer extends ActorLayerEffectRenderer
           // to then draw the shadow on top of with srcIn to only show the
           // shadow and finally composite with the desired blend mode requested
           // here.
-          var extraLayerPaint = Paint()..blendMode = blendMode;
+          var extraLayerPaint = Paint()
+            ..blendMode = blendMode
+            ..isAntiAlias = useAntialias;
           drawPass(canvas, bounds, extraLayerPaint);
         }
 
@@ -1385,9 +1443,10 @@ class FlutterActorLayerEffectRenderer extends ActorLayerEffectRenderer
 
         var color = innerShadow.color;
         var shadowPaint = Paint()
+          ..isAntiAlias = useAntialias
           ..color = layerColor
           ..blendMode =
-              extraBlendPass ? ui.BlendMode.srcIn : ui.BlendMode.srcATop
+          extraBlendPass ? ui.BlendMode.srcIn : ui.BlendMode.srcATop
           ..imageFilter = _blurFilter(
               innerShadow.blurX + baseBlurX, innerShadow.blurY + baseBlurY)
           ..colorFilter = ui.ColorFilter.mode(
@@ -1403,6 +1462,7 @@ class FlutterActorLayerEffectRenderer extends ActorLayerEffectRenderer
 
         // Invert the alpha to compute inner part.
         var invertPaint = Paint()
+          ..isAntiAlias = useAntialias
           ..colorFilter = const ui.ColorFilter.matrix([
             1,
             0,
@@ -1459,7 +1519,7 @@ class FlutterActorLayerEffectRenderer extends ActorLayerEffectRenderer
       switch (mask.maskType) {
         case MaskType.invertedAlpha:
           maskPaint.colorFilter = const ui.ColorFilter.matrix(
-              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 255]);
+              [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 1]);
           break;
         case MaskType.luminance:
           maskPaint.colorFilter = const ui.ColorFilter.matrix([
@@ -1506,7 +1566,7 @@ class FlutterActorLayerEffectRenderer extends ActorLayerEffectRenderer
             -0.59,
             -0.11,
             0,
-            255
+            1
           ]);
           break;
         case MaskType.alpha:
@@ -1517,6 +1577,7 @@ class FlutterActorLayerEffectRenderer extends ActorLayerEffectRenderer
       }
 
       maskPaint.blendMode = BlendMode.dstIn;
+      maskPaint.isAntiAlias = useAntialias;
       canvas.saveLayer(bounds, maskPaint);
       for (final drawable in renderMask.drawables) {
         bool wasHidden = drawable.isHidden;
@@ -1536,5 +1597,14 @@ class FlutterActorLayerEffectRenderer extends ActorLayerEffectRenderer
   void onBlendModeChanged(ui.BlendMode blendMode) {
     // We don't currently support custom blend modes on the layer effect
     // renderer.
+  }
+
+  @override
+  void onAntialiasChanged(bool useAA) {
+    for (final drawable in drawables) {
+      if (drawable is FlutterActorDrawable) {
+        (drawable as FlutterActorDrawable).useAntialias = useAA;
+      }
+    }
   }
 }

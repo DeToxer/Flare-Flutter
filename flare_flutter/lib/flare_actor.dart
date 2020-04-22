@@ -74,72 +74,79 @@ class FlareActor extends LeafRenderObjectWidget {
   /// dimensions of this widget.
   final bool sizeFromArtboard;
 
+  /// When false disables antialiasing on drawables.
+  final bool useAntialias;
+
   const FlareActor(
-    this.filename, {
-    this.boundsNode,
-    this.animation,
-    this.fit = BoxFit.contain,
-    this.alignment = Alignment.center,
-    this.isPaused = false,
-    this.snapToEnd = false,
-    this.controller,
-    this.callback,
-    this.color,
-    this.shouldClip = true,
-    this.sizeFromArtboard = false,
-    this.artboard,
-  }) : flareProvider = null;
+      this.filename, {
+        this.boundsNode,
+        this.animation,
+        this.fit = BoxFit.contain,
+        this.alignment = Alignment.center,
+        this.isPaused = false,
+        this.snapToEnd = false,
+        this.controller,
+        this.callback,
+        this.color,
+        this.shouldClip = true,
+        this.sizeFromArtboard = false,
+        this.artboard,
+        this.useAntialias = true,
+      }) : flareProvider = null;
 
   FlareActor.bundle(
-    String name, {
-    this.boundsNode,
-    this.animation,
-    this.fit = BoxFit.contain,
-    this.alignment = Alignment.center,
-    this.isPaused = false,
-    this.snapToEnd = false,
-    this.controller,
-    this.callback,
-    this.color,
-    this.shouldClip = true,
-    this.sizeFromArtboard = false,
-    this.artboard,
-    AssetBundle bundle,
-  })  : filename = null,
+      String name, {
+        this.boundsNode,
+        this.animation,
+        this.fit = BoxFit.contain,
+        this.alignment = Alignment.center,
+        this.isPaused = false,
+        this.snapToEnd = false,
+        this.controller,
+        this.callback,
+        this.color,
+        this.shouldClip = true,
+        this.sizeFromArtboard = false,
+        this.artboard,
+        this.useAntialias = true,
+        AssetBundle bundle,
+      })  : filename = null,
         flareProvider = AssetFlare(bundle: bundle ?? rootBundle, name: name);
 
   FlareActor.memory(
-    Uint8List bytes, {
-    this.boundsNode,
-    this.animation,
-    this.fit = BoxFit.contain,
-    this.alignment = Alignment.center,
-    this.isPaused = false,
-    this.snapToEnd = false,
-    this.controller,
-    this.callback,
-    this.color,
-    this.shouldClip = true,
-    this.sizeFromArtboard = false,
-    this.artboard,
-  })  : filename = null,
+      Uint8List bytes, {
+        this.boundsNode,
+        this.animation,
+        this.fit = BoxFit.contain,
+        this.alignment = Alignment.center,
+        this.isPaused = false,
+        this.snapToEnd = false,
+        this.controller,
+        this.callback,
+        this.color,
+        this.shouldClip = true,
+        this.sizeFromArtboard = false,
+        this.artboard,
+        this.useAntialias = true,
+      })  : filename = null,
         flareProvider = MemoryFlare(bytes: bytes);
 
   const FlareActor.asset(
-    this.flareProvider, {
-    this.boundsNode,
-    this.animation,
-    this.fit = BoxFit.contain,
-    this.alignment = Alignment.center,
-    this.isPaused = false,
-    this.snapToEnd = false,
-    this.controller,
-    this.callback,
-    this.color,
-    this.shouldClip = true,
-    this.sizeFromArtboard = false,
-    this.artboard,
-  })  : filename = null;
+      this.flareProvider, {
+        this.boundsNode,
+        this.animation,
+        this.fit = BoxFit.contain,
+        this.alignment = Alignment.center,
+        this.isPaused = false,
+        this.snapToEnd = false,
+        this.controller,
+        this.callback,
+        this.color,
+        this.shouldClip = true,
+        this.sizeFromArtboard = false,
+        this.artboard,
+        this.useAntialias = true,
+      }) : filename = null;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
@@ -157,7 +164,8 @@ class FlareActor extends LeafRenderObjectWidget {
       ..shouldClip = shouldClip
       ..boundsNodeName = boundsNode
       ..useIntrinsicSize = sizeFromArtboard
-      ..artboardName = artboard;
+      ..artboardName = artboard
+      ..useAntialias = useAntialias;
   }
 
   @override
@@ -175,7 +183,8 @@ class FlareActor extends LeafRenderObjectWidget {
       ..shouldClip = shouldClip
       ..boundsNodeName = boundsNode
       ..useIntrinsicSize = sizeFromArtboard
-      ..artboardName = artboard;
+      ..artboardName = artboard
+      ..useAntialias = useAntialias;
   }
 
   @override
@@ -206,6 +215,7 @@ class FlareActorRenderObject extends FlareRenderBox {
   FlareCompletedCallback _completedCallback;
   bool snapToEnd = false;
   bool _isPaused = false;
+  bool _useAntialias = true;
   FlutterActor _actor;
 
   String get artboardName => _artboardName;
@@ -226,6 +236,17 @@ class FlareActorRenderObject extends FlareRenderBox {
     updatePlayState();
   }
 
+  bool get useAntialias => _useAntialias;
+  set useAntialias(bool value) {
+    if (value != _useAntialias) {
+      _useAntialias = value;
+      if (_artboard != null) {
+        _artboard.useAntialias = _useAntialias;
+      }
+      markNeedsPaint();
+    }
+  }
+
   final List<FlareAnimationLayer> _animationLayers = [];
   bool shouldClip;
 
@@ -242,11 +263,11 @@ class FlareActorRenderObject extends FlareRenderBox {
         _artboard.overrideColor = value == null
             ? null
             : Float32List.fromList([
-                value.red / 255.0,
-                value.green / 255.0,
-                value.blue / 255.0,
-                value.opacity
-              ]);
+          value.red / 255.0,
+          value.green / 255.0,
+          value.blue / 255.0,
+          value.opacity
+        ]);
       }
       markNeedsPaint();
     }
@@ -291,7 +312,7 @@ class FlareActorRenderObject extends FlareRenderBox {
   @override
   bool get isPlaying =>
       !_isPaused &&
-      ((_controller?.isActive?.value ?? false) || _animationLayers.isNotEmpty);
+          ((_controller?.isActive?.value ?? false) || _animationLayers.isNotEmpty);
 
   void onControllerActiveChange() {
     updatePlayState();
@@ -343,12 +364,12 @@ class FlareActorRenderObject extends FlareRenderBox {
     _artboard.overrideColor = _color == null
         ? null
         : Float32List.fromList([
-            _color.red / 255.0,
-            _color.green / 255.0,
-            _color.blue / 255.0,
-            _color.opacity
-          ]);
-
+      _color.red / 255.0,
+      _color.green / 255.0,
+      _color.blue / 255.0,
+      _color.opacity
+    ]);
+    _artboard.useAntialias = _useAntialias;
     if (_controller != null) {
       _controller.initialize(_artboard);
     }
